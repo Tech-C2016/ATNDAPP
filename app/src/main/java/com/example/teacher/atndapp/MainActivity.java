@@ -12,14 +12,37 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ArrayAdapter;
+import android.widget.ListView;
+import android.widget.Toast;
+
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.example.teacher.atndapp.dto.EventDto;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import butterknife.BindView;
+import butterknife.ButterKnife;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
+
+    @BindView(R.id.list_evet)
+    ListView listEvent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        ButterKnife.bind(this);
         Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -34,7 +57,51 @@ public class MainActivity extends AppCompatActivity
 
         String url = "http://api.atnd.org/events/?keyword_or=android&format=json";
 
-        
+        JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+
+                    @Override
+                    public void onResponse(JSONObject response) {
+
+                        List<EventDto> lst = new ArrayList<>();
+
+                        try {
+                            JSONArray eventArray = response.getJSONArray("events");
+                            for(int i = 0; i < eventArray.length(); i++){
+                                JSONObject event = eventArray.getJSONObject(i).getJSONObject("event");
+                                EventDto eventDto = new EventDto();
+                                String id = event.getString("event_id");
+                                eventDto.setEventID(id.isEmpty() ? -1 : Integer.parseInt(id));
+                                eventDto.setTitle(event.getString("title"));
+                                eventDto.setAddress(event.getString("address"));
+                                lst.add(eventDto);
+                            }
+
+                            List<String> titleLst = new ArrayList<>();
+                            for(EventDto dto : lst){
+                                titleLst.add(dto.getTitle());
+                            }
+
+                            ArrayAdapter adapter =
+                                    new ArrayAdapter<String>(MainActivity.this,
+                                            android.R.layout.simple_list_item_1,
+                                            titleLst);
+                            listEvent.setAdapter(adapter);
+
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                }, new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+
+                    }
+                });
+
+        VolleyManager.getInstance(this).addToRequestQueue(jsObjRequest);
     }
 
     @Override
