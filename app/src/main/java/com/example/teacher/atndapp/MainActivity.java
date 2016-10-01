@@ -3,6 +3,8 @@ package com.example.teacher.atndapp;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.support.v4.widget.SwipeRefreshLayout;
+import android.text.TextUtils;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -13,6 +15,7 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ListView;
 import android.widget.Toast;
 
@@ -31,12 +34,31 @@ import java.util.List;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
+import butterknife.OnClick;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
     @BindView(R.id.list_evet)
     ListView listEvent;
+
+    @BindView(R.id.edit_search_keyword)
+    EditText editSearchKeyword;
+
+    @BindView(R.id.swipeList)
+    SwipeRefreshLayout swipeRefreshLayout;
+
+    @OnClick(R.id.btn_search)
+    public void onBtnSearch(){
+
+        String keyword = editSearchKeyword.getText().toString();
+        if(TextUtils.isEmpty(keyword)){
+           Toast.makeText(this,"validation error",Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        search(keyword);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,53 +77,20 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        String url = "http://api.atnd.org/events/?keyword_or=android&format=json";
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
 
-        JsonObjectRequest jsObjRequest = new JsonObjectRequest
-                (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+                onBtnSearch();
 
-                    @Override
-                    public void onResponse(JSONObject response) {
+                // プログレスstop
+                if(swipeRefreshLayout.isRefreshing()){
+                    swipeRefreshLayout.setRefreshing(false);
+                }
 
-                        List<EventDto> lst = new ArrayList<>();
+            }
+        });
 
-                        try {
-                            JSONArray eventArray = response.getJSONArray("events");
-                            for(int i = 0; i < eventArray.length(); i++){
-                                JSONObject event = eventArray.getJSONObject(i).getJSONObject("event");
-                                EventDto eventDto = new EventDto();
-                                String id = event.getString("event_id");
-                                eventDto.setEventID(id.isEmpty() ? -1 : Integer.parseInt(id));
-                                eventDto.setTitle(event.getString("title"));
-                                eventDto.setAddress(event.getString("address"));
-                                lst.add(eventDto);
-                            }
-
-                            List<String> titleLst = new ArrayList<>();
-                            for(EventDto dto : lst){
-                                titleLst.add(dto.getTitle());
-                            }
-
-                            ArrayAdapter adapter =
-                                    new ArrayAdapter<String>(MainActivity.this,
-                                            android.R.layout.simple_list_item_1,
-                                            titleLst);
-                            listEvent.setAdapter(adapter);
-
-                        } catch (JSONException e) {
-                            e.printStackTrace();
-                        }
-
-                    }
-                }, new Response.ErrorListener() {
-
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-
-                    }
-                });
-
-        VolleyManager.getInstance(this).addToRequestQueue(jsObjRequest);
     }
 
     @Override
@@ -151,5 +140,56 @@ public class MainActivity extends AppCompatActivity
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
+    }
+
+    private void search(final String keyword){
+        String url = String.format(
+                "http://api.atnd.org/events/?keyword_or=%s&format=json",keyword);
+
+        JsonObjectRequest jsObjRequest = new JsonObjectRequest
+                (Request.Method.GET, url, null, new Response.Listener<JSONObject>() {
+
+                    @Override
+                    public void onResponse(JSONObject response) {
+
+                        List<EventDto> lst = new ArrayList<>();
+
+                        try {
+                            JSONArray eventArray = response.getJSONArray("events");
+                            for(int i = 0; i < eventArray.length(); i++){
+                                JSONObject event = eventArray.getJSONObject(i).getJSONObject("event");
+                                EventDto eventDto = new EventDto();
+                                String id = event.getString("event_id");
+                                eventDto.setEventID(id.isEmpty() ? -1 : Integer.parseInt(id));
+                                eventDto.setTitle(event.getString("title"));
+                                eventDto.setAddress(event.getString("address"));
+                                lst.add(eventDto);
+                            }
+
+                            List<String> titleLst = new ArrayList<>();
+                            for(EventDto dto : lst){
+                                titleLst.add(dto.getTitle());
+                            }
+
+                            ArrayAdapter adapter =
+                                    new ArrayAdapter<String>(MainActivity.this,
+                                            android.R.layout.simple_list_item_1,
+                                            titleLst);
+                            listEvent.setAdapter(adapter);
+
+                        } catch (JSONException e) {
+                            e.printStackTrace();
+                        }
+
+                    }
+                }, new Response.ErrorListener() {
+
+                    @Override
+                    public void onErrorResponse(VolleyError error) {
+                        Toast.makeText(MainActivity.this,"server error",Toast.LENGTH_LONG).show();
+                    }
+                });
+
+        VolleyManager.getInstance(this).addToRequestQueue(jsObjRequest);
     }
 }
