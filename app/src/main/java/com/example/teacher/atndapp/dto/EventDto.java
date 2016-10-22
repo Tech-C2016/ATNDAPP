@@ -1,5 +1,6 @@
 package com.example.teacher.atndapp.dto;
 
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.TimeZone;
@@ -17,23 +18,27 @@ public class EventDto {
     private int ownerID;
     private String ownerNickname;
     private String ownerTwitterID;
-    private Date startAt;
+    private String startAt;
     private Date updateAt;
 
-    public String getStartAt() {
+    public Date getStartAt() {
         SimpleDateFormat format =
-                new SimpleDateFormat("yyyy/mm/dd H:mm:s");
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         format.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
-        return format.format(startAt);
+        try {
+            return format.parse(startAt);
+        } catch (ParseException e) {
+        }
+        return null;
     }
 
-    public void setStartAt(Date startAt) {
+    public void setStartAt(String startAt) {
         this.startAt = startAt;
     }
 
     public String getUpdateAt() {
         SimpleDateFormat format =
-                new SimpleDateFormat("yyyy/mm/dd H:mm:s");
+                new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         format.setTimeZone(TimeZone.getTimeZone("Asia/Tokyo"));
         return format.format(updateAt);
     }
